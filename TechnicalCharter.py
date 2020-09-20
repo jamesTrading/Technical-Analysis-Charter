@@ -11,7 +11,7 @@ register_matplotlib_converters()
 
 MyPortfolio = ['MSFT','AAPL','GOOGL','AMZN','SQ','CBA.AX','TLS.AX','IOZ.AX','WBC.AX']
 USStonks = ['MSFT','AAPL','GOOG','AMZN','SQ']
-AUSStonks = ['CBA.AX','TLS.AX','IOZ.AX', 'WOW.AX', 'FMG.AX', 'MQG.AX', 'NCM.AX', 'RHC.AX', 'SEK.AX']
+AUSStonks = ['CBA.AX','TLS.AX','IOZ.AX', 'WOW.AX', 'FMG.AX', 'MQG.AX', 'NCM.AX', 'RHC.AX', 'SEK.AX','MSFT','AAPL','GOOG','AMZN','SQ','SPY']
 
 def FibonacciGrapher(CompanyCode, dates, homie, selldate, scost,selldate1, scost1): 
     CompanyCode = CompanyCode
@@ -292,7 +292,177 @@ def MoneyFlowIndex():
     plt.show()
     return
 
-def BuySellStrategy():
+
+#MACD_BuySignal_graphed()
+#MoneyFlowIndex()
+
+def Screener(codes):
+    costbases = 0
+    sharecount = 0
+    counter = 0
+    pscost = 0
+    currentprices = 0
+    currentcostbases = 0
+    TYPValue = 0
+    AbsTP = []
+    x = 0
+    y = 0
+    z = 0
+    w = 0
+    PosRatio = 0
+    NegRatio = 0
+    Positive = []
+    Negative = []
+    MFR = []
+    Equat = 0
+    timer = 0
+    timetrack = []
+    MFI = [50,50,50,50,50,50,50,50,50,50,50,50,50,50]
+    SellRange = []
+    seller = 0
+    BuyRange = []
+    buyer = 0
+    CompanyCode = codes
+    if "." in CompanyCode:
+        market = pdr.get_data_yahoo('^AXJO',start=datetime.datetime(2020,1,1), end=date.today())
+    else:
+        market = pdr.get_data_yahoo('^GSPC',start=datetime.datetime(2020,1,1), end=date.today())
+    stock = pdr.get_data_yahoo(CompanyCode,start=datetime.datetime(2020,1,1), end=date.today())
+    days = stock['Close'].count()
+    df2 = pd.DataFrame(stock)
+    df1 = pd.DataFrame(market)
+    df2.index = pd.to_datetime(df2.index)
+    df2['LMA'] = df2.rolling(window=100).mean()['Close']
+    df2['SMA'] = df2.rolling(window=30).mean()['Close']
+    df2['Typical Price'] = (df2['Close'] + df2['High'] + df2['Low'])/3
+    AbsTP.append(df2['Typical Price'].iloc[x])
+    while timer < days:
+        timetrack.append((timer+1))
+        timer = timer + 1
+    while x < (days - 1):
+        if df2['Typical Price'].iloc[(x+1)] > df2['Typical Price'].iloc[x]:
+            AbsTP.append(df2['Typical Price'].iloc[(x+1)])
+        else:
+            AbsTP.append((df2['Typical Price'].iloc[(x+1)])*(-1))
+        x = x + 1
+    df2['Abs TP'] = AbsTP
+    df2['Raw Money'] = df2['Abs TP'] * df2['Volume']
+    while y < days:
+        if df2['Raw Money'].iloc[y] > 0:
+            Positive.append(df2['Raw Money'].iloc[y])
+            Negative.append(0)
+        else:
+            Negative.append(df2['Raw Money'].iloc[y])
+            Positive.append(0)
+        y = y + 1
+    while z < 14:
+        PosRatio = PosRatio + Positive[z]
+        NegRatio = NegRatio + Negative[z]
+        z = z + 1
+    while z < days:
+        MFR.append((PosRatio/(-1*NegRatio)))
+        PosRatio = PosRatio - Positive[(z - 14)] + Positive[z]
+        NegRatio = NegRatio - Negative[(z - 14)] + Negative[z]
+        z = z + 1
+    while w < len(MFR):
+        Equat = 100 - (100/(1+MFR[w]))
+        MFI.append(Equat)
+        w = w + 1
+    df2['MFI'] = MFI
+    df2['Timer'] = timetrack
+    df2['26 EMA'] = df2.ewm(span = 26, min_periods = 26).mean()['Close']
+    df2['12 EMA'] = df2.ewm(span = 12, min_periods = 12).mean()['Close']
+    df2['MACD'] = df2['12 EMA'] - df2['26 EMA']
+    df2['Signal Line'] = df2.ewm(span = 9, min_periods = 9).mean()['MACD']
+    xtra = 0
+    trade_return = []
+    maxValnear = []
+    bigposition = []
+    market_return = []
+    largebuy = 0
+    largebuycounter = 0
+    small = 0
+    smallcounter = 0
+    dates = []
+    homie = []
+    bbb = 0
+    bbbcounter = 0
+    while counter < (days):
+        TYPValue = round(float(df2['Close'][counter]),2) + TYPValue
+        if round(float(df2['MFI'][counter]),2) < 30:
+            if df2['MACD'][counter] < 0:
+                if (df2['MACD'][counter-1]) < (df2['Signal Line'][counter-1]):
+                    if abs((df2['MACD'][counter-1] - df2['Signal Line'][counter-1])) < abs((df2['MACD'][counter-2] - df2['Signal Line'][counter-2])):
+                        if abs(df2['MACD'][counter-1]) > abs(df2['MACD'][counter-2]):
+                            dates.append(df2.index.date[counter])
+                            homie.append(round(float(df2['Close'][counter]),2))
+                            if (counter + 1) == days:
+                                costbases = costbases + round(float(df2['Close'][(counter)]),2)
+                            else:
+                                costbases = costbases + round(float(df2['Close'][(counter+1)]),2)
+                            bbb = bbb + round(float(df2['SMA'][counter]),2)
+                            bbbcounter = bbbcounter + 1
+                            Valnear = df2['Close'][(counter):(counter+20)]
+                            maxValnear.append(max(Valnear))
+                            maxposition = np.where(Valnear == Valnear.max())
+                            maxposition = maxposition[0][0]
+                            bigposition.append(int(maxposition))
+                            sharecount = sharecount + 1
+                            trade_return.append(((maxValnear[sharecount-1] - round(float(df2['Close'][(counter)]),2))/round(float(df2['Close'][(counter)]),2))*100)
+                            market_return.append(((df1['Close'][counter+int(maxposition)] - round(float(df1['Close'][(counter)]),2))/round(float(df1['Close'][(counter)]),2))*100)
+                            if df2['Close'][counter] < df2['LMA'][counter]*0.95:
+                                largebuy = (maxValnear[sharecount-1] - round(float(df2['Close'][(counter)]),2))/round(float(df2['Close'][(counter)]),2)*100 + largebuy
+                                largebuycounter = largebuycounter + 1
+                            else:
+                                small = (maxValnear[sharecount-1] - round(float(df2['Close'][(counter)]),2))/round(float(df2['Close'][(counter)]),2)*100 + small
+                                smallcounter = smallcounter + 1
+        counter = counter + 1
+    wackamole = 0
+    if round(float(df2['MFI'][(days - 1)]), 2) < 40:
+        if df2['MACD'][days-1] < 0:
+            print("################################")
+            if "." in CompanyCode:
+                print('Australian Market - '+ CompanyCode)
+            else:
+                print('US Market - '+ CompanyCode)
+            currentprices = round(float(df2['Close'][(days-1)]),2)
+            if sharecount > 0:
+                pscost = costbases / sharecount
+                wackamole = bbb/bbbcounter
+            else:
+                pscost = 0
+                wackamole = 0
+            print("Total number of shares bought:", sharecount)
+            print("Total cost base of shares:", round(costbases,2))
+            print("Per share cost base is:", round(pscost,2))
+            print("The typical price for shares bought in a similar time are: ", round(wackamole, 2))
+            print("################################")
+            print("5th last MFI:", round(float(df2['MFI'][(days - 5)]), 2))
+            print("4th last MFI:", round(float(df2['MFI'][(days - 4)]), 2))
+            print("3rd last MFI:", round(float(df2['MFI'][(days - 3)]), 2))
+            print("2nd last MFI:", round(float(df2['MFI'][(days - 2)]), 2))
+            print("Most recent MFI:", round(float(df2['MFI'][(days - 1)]), 2))
+            print("The current price is:",currentprices)
+            print("################################")
+            print("The MACD 3 days ago was:",df2['MACD'][days-3])
+            print("The MACD 2 days ago was:",df2['MACD'][days-2])
+            print("The MACD 1 day ago was:",df2['MACD'][days-1])
+            print("The Signal Line 3 days ago was:",df2['Signal Line'][days-3])
+            print("The Signal Line 2 days ago was:",df2['Signal Line'][days-2])
+            print("The Signal Line 1 day ago was:",df2['Signal Line'][days-1])
+            print("The difference 3 days ago was:", (df2['MACD'][days-3] - df2['Signal Line'][days-3]))
+            print("The difference 2 days ago was:", (df2['MACD'][days-2] - df2['Signal Line'][days-2]))
+            print("The difference 1 day ago was:", (df2['MACD'][days-1] - df2['Signal Line'][days-1]))
+            print("The current 100 MA value is:", round(df2['LMA'][days-1],3))
+            print("The current discount to the 100 MA value is:", round((((df2['Close'][days-1]-df2['LMA'][days-1])/df2['LMA'][days-1])*100),3),"%")
+            return
+    else:
+        return
+
+#for element in AUSStonks:
+#    Screener(element)
+
+def Test():
     costbases = 0
     sharecount = 0
     counter = 0
@@ -342,6 +512,7 @@ def BuySellStrategy():
     df1 = pd.DataFrame(market)
     df2.index = pd.to_datetime(df2.index)
     df2['LMA'] = df2.rolling(window=100).mean()['Close']
+    df2['SMA'] = df2.rolling(window=30).mean()['Close']
     df2['Typical Price'] = (df2['Close'] + df2['High'] + df2['Low'])/3
     AbsTP.append(df2['Typical Price'].iloc[x])
     while x < (days - 1):
@@ -392,19 +563,23 @@ def BuySellStrategy():
     smallcounter = 0
     dates = []
     homie = []
+    bbb = 0
+    bbbcounter = 0
     while counter < (days):
         TYPValue = round(float(df2['Close'][counter]),2) + TYPValue
         if round(float(df2['MFI'][counter]),2) < 30:
-            if df2['Signal Line'][counter] < 0:
+            if df2['MACD'][counter] < 0:
                 if (df2['MACD'][counter-1]) < (df2['Signal Line'][counter-1]):
-                    if abs((df2['MACD'][counter-2] - df2['Signal Line'][counter-2])) > abs((df2['MACD'][counter-3] - df2['Signal Line'][counter-3])):
-                        if abs((df2['MACD'][counter-1] - df2['Signal Line'][counter-1])) < abs((df2['MACD'][counter-2] - df2['Signal Line'][counter-2])):
+                    if abs((df2['MACD'][counter-1] - df2['Signal Line'][counter-1])) < abs((df2['MACD'][counter-2] - df2['Signal Line'][counter-2])):
+                        if abs(df2['MACD'][counter-1]) > abs(df2['MACD'][counter-2]):
                             dates.append(df2.index.date[counter])
                             homie.append(round(float(df2['Close'][counter]),2))
                             if (counter + 1) == days:
                                 costbases = costbases + round(float(df2['Close'][(counter)]),2)
                             else:
                                 costbases = costbases + round(float(df2['Close'][(counter+1)]),2)
+                            bbb = bbb + round(float(df2['SMA'][counter]),2)
+                            bbbcounter = bbbcounter + 1
                             Valnear = df2['Close'][(counter):(counter+20)]
                             maxValnear.append(max(Valnear))
                             maxposition = np.where(Valnear == Valnear.max())
@@ -421,6 +596,7 @@ def BuySellStrategy():
                                 smallcounter = smallcounter + 1
         counter = counter + 1
     TYPValue = TYPValue / (days)
+    print("The last buy date is: ", dates[len(dates)-1])
     sellcounter = 0
     selldate = []
     sprice = 0
@@ -431,12 +607,11 @@ def BuySellStrategy():
         if round(float(df2['MFI'][sellcounter]),2) > 73:
             if df2['Signal Line'][sellcounter] > 0:
                 if (df2['MACD'][sellcounter-1]) > (df2['Signal Line'][sellcounter-1]):
-                    if abs((df2['MACD'][sellcounter-2] - df2['Signal Line'][sellcounter-2])) > abs((df2['MACD'][sellcounter-3] - df2['Signal Line'][sellcounter-3])):
-                        if abs((df2['MACD'][sellcounter-1] - df2['Signal Line'][sellcounter-1])) < abs((df2['MACD'][sellcounter-2] - df2['Signal Line'][sellcounter-2])):
-                            selldate.append(df2.index.date[sellcounter])
-                            scost.append(round(float(df2['Close'][sellcounter]),2))
-                            sprice = sprice + round(float(df2['Close'][(sellcounter + 1)]),2)
-                            scount = scount + 1
+                    if abs((df2['MACD'][sellcounter-1] - df2['Signal Line'][sellcounter-1])) < abs((df2['MACD'][sellcounter-2] - df2['Signal Line'][sellcounter-2])):
+                        selldate.append(df2.index.date[sellcounter])
+                        scost.append(round(float(df2['Close'][sellcounter]),2))
+                        sprice = sprice + round(float(df2['Close'][(sellcounter + 1)]),2)
+                        scount = scount + 1
         sellcounter = sellcounter + 1
     sellcounter = 0
     selldate1 = []
@@ -445,7 +620,7 @@ def BuySellStrategy():
     discount1 = 0
     scount1 = 0
     while sellcounter < (days - 1):
-        if round(float(df2['MFI'][sellcounter]),2) > 73 or round(float(df2['MFI'][sellcounter-1]),2) > 73 or round(float(df2['MFI'][sellcounter-2]),2) > 73:
+        if round(float(df2['MFI'][sellcounter]),2) > 73 or round(float(df2['MFI'][sellcounter-1]),2) > 73:
             if df2['Signal Line'][sellcounter] > 0:
                 if (df2['MACD'][sellcounter-1]) > (df2['Signal Line'][sellcounter-1]):
                     if df2['MACD'][sellcounter] < df2['Signal Line'][sellcounter]:
@@ -489,6 +664,7 @@ def BuySellStrategy():
     print("Total number of shares bought:", sharecount)
     print("Total cost base of shares:", round(costbases,2))
     print("Per share cost base is:", round(pscost,2))
+    print("The typical price for shares bought in a similar time are: ", round(bbb/bbbcounter, 2))
     print("################################")
     print("5th last MFI:", round(float(df2['MFI'][(days - 5)]), 2))
     print("4th last MFI:", round(float(df2['MFI'][(days - 4)]), 2))
@@ -511,4 +687,4 @@ def BuySellStrategy():
     FibonacciGrapher(CompanyCode, dates, homie, selldate, scost, selldate1, scost1)
     return
 
-BuySellStrategy()
+Test()
